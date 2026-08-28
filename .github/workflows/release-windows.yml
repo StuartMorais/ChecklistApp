@@ -1,0 +1,106 @@
+name: Gerar release do ChecklistPython para Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Próximo incremento SemVer
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Windows release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Resolve release version
+        id: version
+        shell: pwsh
+        run: |
+          $bump = "${{ github.event.inputs.bump }}"
+          if ([string]::IsNullOrWhiteSpace($bump)) {
+            $bump = "patch"
+          }
+
+          $version = python tools/resolve_release_version.py `
+            --bump $bump `
+            --event-name "${{ github.event_name }}" `
+            --ref-name "${{ github.ref_name }}"
+
+          if (-not ($version -match '^v\d+\.\d+\.\d+$')) {
+            throw "Invalid version resolved: $version"
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "version_number=$($version.TrimStart('v'))" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Resolved version: $version"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-build.txt
+
+      - name: Fast preflight
+        shell: pwsh
+        run: |
+          python -m compileall -q app main.py tools
+          python -c "from app.scanner import scan_document_to_template; from app.storage import load_templates; from app.pdf_exporter import export_checklist_pdf; print('preflight imports ok')"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build portable EXE and installer
+        shell: pwsh
+        run: .\scripts\build_github.ps1 -Version "${{ steps.version.outputs.version }}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChecklistPython-${{ steps.version.outputs.version }}-windows
+          path: dist/release/*
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $assets = Get-ChildItem "dist\release" -File | Sort-Object Name | ForEach-Object { $_.FullName }
+
+          if (-not $assets) {
+            throw "No release assets found."
+          }
+
+          gh release view $version *> $null
+
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $version $assets --clobber
+          } else {
+            gh release create $version $assets --title $version --generate-notes
+          }

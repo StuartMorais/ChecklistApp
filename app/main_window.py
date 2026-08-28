@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from .pdf_exporter import export_checklist_pdf
+from .resources import resource_path
 from .scanner import scan_document_to_template
 from .storage import DATA_FILE, load_templates, new_id, save_templates
 
@@ -35,6 +36,11 @@ class ChecklistMainWindow(QMainWindow):
 
         self.setWindowTitle("Checklist Application — Python")
         self.resize(1400, 850)
+
+        icon_path = resource_path("assets/icon.ico")
+
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
 
         self.templates: list[dict[str, Any]] = []
         self.active_checklist_id: str | None = None
