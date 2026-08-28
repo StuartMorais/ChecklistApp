@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication
 
 from app.main_window import ChecklistMainWindow
 from app.resources import resource_path
+from app.theme import apply_theme, get_saved_theme
 
 
 APP_USER_MODEL_ID = "ChecklistPython.Desktop.Scanner"
@@ -30,6 +31,7 @@ def main() -> int:
     set_windows_app_user_model_id()
 
     app = QApplication(sys.argv)
+    apply_theme(app, get_saved_theme())
 
     icon_path = resource_path("assets/icon.ico")
 

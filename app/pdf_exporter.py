@@ -28,9 +28,10 @@ def export_checklist_pdf(template: dict[str, Any], output_path: str | Path) -> P
         "ChecklistTitle",
         parent=styles["Title"],
         fontName="Helvetica-Bold",
-        fontSize=16,
-        leading=19,
-        spaceAfter=6,
+        fontSize=13,
+        leading=15,
+        alignment=1,
+        spaceAfter=4,
     )
 
     subtitle_style = ParagraphStyle(
@@ -90,7 +91,8 @@ def export_checklist_pdf(template: dict[str, Any], output_path: str | Path) -> P
         if isinstance(section, dict)
     )
 
-    story.append(Paragraph(escape_pdf_text(template.get("title") or "Checklist"), title_style))
+    story.append(Paragraph("FOLHA DE VERIFICAÇÃO DE DOCUMENTOS", title_style))
+    story.append(Paragraph(escape_pdf_text(template.get("title") or "Checklist"), subtitle_style))
     story.append(Paragraph(escape_pdf_text(template.get("subtitle") or "Sem subtítulo"), subtitle_style))
     story.append(Paragraph(f"<b>Base legal:</b> {escape_pdf_text(template.get('baseLegal') or 'Não informada')}", small_style))
     story.append(Paragraph(f"<b>Conteúdo:</b> {len(sections)} seção(ões), {total_items} item(ns)", small_style))
@@ -121,9 +123,9 @@ def export_checklist_pdf(template: dict[str, Any], output_path: str | Path) -> P
             table_data = [
                 [
                     p("Item", cell_style),
-                    p("Documentos / Informações constantes do processo", cell_style),
-                    p("Normativos", cell_style),
-                    p("Situação", cell_style),
+                    p("Documento / Informações constantes do processo", cell_style),
+                    p("Normativo", cell_style),
+                    p("S / N / NA", cell_style),
                     p("Folha", cell_style),
                     p("Observação", cell_style),
                     p("Painel inferior", cell_style),
@@ -150,20 +152,20 @@ def export_checklist_pdf(template: dict[str, Any], output_path: str | Path) -> P
                 table_data,
                 repeatRows=1,
                 colWidths=[
-                    16 * mm,
-                    75 * mm,
-                    45 * mm,
+                    14 * mm,
+                    78 * mm,
+                    49 * mm,
+                    22 * mm,
                     20 * mm,
-                    20 * mm,
-                    38 * mm,
-                    63 * mm,
+                    40 * mm,
+                    54 * mm,
                 ],
             )
 
             table.setStyle(
                 TableStyle(
                     [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F3F4F6")),
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#D9DDE3")),
                         ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#111827")),
                         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                         ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#9CA3AF")),

@@ -15,6 +15,92 @@ BACKUP_DIR = DATA_DIR / "backups"
 MAX_BACKUPS = 20
 
 
+CHECKLIST_JSON_SCHEMA = "checklist-app.checklist"
+CHECKLIST_JSON_VERSION = 1
+
+
+def export_checklist_json(template: dict[str, Any], destination: str | Path) -> Path:
+    """Export one normalized checklist as a portable JSON file.
+
+    The exported envelope is intentionally independent from the application's
+    internal checklistTemplates.json library, so users can share/import a
+    checklist without replacing their entire local library.
+    """
+    destination_path = Path(destination)
+    if destination_path.suffix.lower() != ".json":
+        destination_path = destination_path.with_suffix(".json")
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "schema": CHECKLIST_JSON_SCHEMA,
+        "version": CHECKLIST_JSON_VERSION,
+        "exportedAt": datetime.now().isoformat(timespec="seconds"),
+        "checklist": normalize_template(template),
+    }
+
+    temporary_path = destination_path.with_suffix(destination_path.suffix + ".tmp")
+    with temporary_path.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, ensure_ascii=False, indent=2)
+    temporary_path.replace(destination_path)
+    return destination_path
+
+
+def import_checklists_json(source: str | Path, existing_ids: set[str] | None = None) -> list[dict[str, Any]]:
+    """Read portable checklist JSON and return normalized checklist objects.
+
+    Accepted inputs:
+    - the portable envelope produced by :func:`export_checklist_json`;
+    - one raw checklist object;
+    - a list of raw checklist objects (useful for old/manual exports).
+
+    ID collisions are imported as copies rather than overwriting local data.
+    """
+    source_path = Path(source)
+    with source_path.open("r", encoding="utf-8-sig") as file:
+        payload = json.load(file)
+
+    raw_templates: list[Any]
+    if isinstance(payload, dict) and payload.get("schema") == CHECKLIST_JSON_SCHEMA:
+        version = int(payload.get("version") or 0)
+        if version != CHECKLIST_JSON_VERSION:
+            raise ValueError(f"Versão JSON de checklist não suportada: {version}.")
+        checklist = payload.get("checklist")
+        if not isinstance(checklist, dict):
+            raise ValueError("O JSON não contém um checklist válido.")
+        raw_templates = [checklist]
+    elif isinstance(payload, dict):
+        # Backward-friendly import of a single raw checklist object. Require at
+        # least one recognizable checklist key so arbitrary JSON is not silently
+        # accepted as an empty checklist.
+        if not any(key in payload for key in ("title", "sections", "items")):
+            raise ValueError("O JSON não parece conter um checklist.")
+        raw_templates = [payload]
+    elif isinstance(payload, list):
+        if not payload or not all(isinstance(item, dict) for item in payload):
+            raise ValueError("A lista JSON não contém checklists válidos.")
+        raw_templates = payload
+    else:
+        raise ValueError("Formato JSON de checklist inválido.")
+
+    used_ids = set(existing_ids or set())
+    imported: list[dict[str, Any]] = []
+    for raw_template in raw_templates:
+        template = normalize_template(raw_template)
+        original_id = str(template.get("id") or "")
+        if not original_id or original_id in used_ids:
+            template["id"] = new_id("checklist")
+            template["title"] = _copy_title(str(template.get("title") or "Checklist sem nome"), used_ids)
+        used_ids.add(str(template["id"]))
+        imported.append(template)
+    return imported
+
+
+def _copy_title(title: str, _used_ids: set[str]) -> str:
+    # Keep imports understandable without trying to infer all existing titles;
+    # the generated checklist ID already guarantees storage uniqueness.
+    return f"{title} (importado)"
+
+
 def new_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4()}"
 
@@ -93,6 +179,9 @@ def normalize_template(template: Any) -> dict[str, Any]:
         "baseLegal": str(template.get("baseLegal") or ""),
         "description": str(template.get("description") or ""),
         "sections": [],
+        "sourceMetadata": dict(template.get("sourceMetadata") or {}) if isinstance(template.get("sourceMetadata"), dict) else {},
+        "scanReport": dict(template.get("scanReport") or {}) if isinstance(template.get("scanReport"), dict) else {},
+        "scanCandidates": [dict(item) for item in template.get("scanCandidates", []) if isinstance(item, dict)] if isinstance(template.get("scanCandidates"), list) else [],
     }
 
     raw_sections = template.get("sections")
@@ -144,7 +233,7 @@ def normalize_item(item: Any, fallback_number: int) -> dict[str, Any]:
         "number": str(item.get("number") or fallback_number),
         "documento": str(item.get("documento") or ""),
         "normativo": str(item.get("normativo") or ""),
-        "situacao": str(item.get("situacao") or "N/A"),
+        "situacao": str(item.get("situacao") or "") if "situacao" in item else "N/A",
         "folha": str(item.get("folha") or ""),
         "observacao": str(item.get("observacao") or ""),
         "description": str(item.get("description") or ""),
@@ -152,6 +241,13 @@ def normalize_item(item: Any, fallback_number: int) -> dict[str, Any]:
         "notes": normalize_text_list(item.get("notes")),
         "scanConfidence": str(item.get("scanConfidence") or ""),
         "scanEvidence": normalize_text_list(item.get("scanEvidence")),
+        "scanCandidateId": str(item.get("scanCandidateId") or ""),
+        "scanSource": str(item.get("scanSource") or ""),
+        "scanPage": int(item.get("scanPage") or 0),
+        "scanRect": list(item.get("scanRect") or []) if isinstance(item.get("scanRect"), list) else [],
+        "scanConfidenceValue": float(item.get("scanConfidenceValue") or 0.0),
+        "scanDimensions": dict(item.get("scanDimensions") or {}) if isinstance(item.get("scanDimensions"), dict) else {},
+        "scanReviewed": bool(item.get("scanReviewed", False)),
     }
 
 

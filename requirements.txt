@@ -1,4 +1,4 @@
 PySide6
 python-docx
-pypdf
 reportlab
+PyMuPDF>=1.24
