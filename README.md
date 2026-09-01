@@ -13,6 +13,7 @@ The interface was rebuilt again to make the checklist itself easier to read:
 - The app has two complete themes: **Modo claro** and **Modo escuro**. The whole interface changes theme together and the choice is remembered.
 - The main checklist view imitates the official verification-sheet layout instead of splitting the user across many small lists.
 - Sections appear as wide collapsible bars, like the original app: they start closed and open with `▶ / ▼`.
+- Selected sections can be renamed with **Renomear seção**; custom names and capitalization are saved and exported.
 - **Expandir tudo** and **Recolher tudo** are available above the checklist.
 - Items appear in one large editable table with columns for item, document/information, normative reference, S/N/NA, sheet/page, and observation.
 - The bottom panel keeps the original app idea of **Documentos necessários**, showing description, minimum documents, and review notes for the selected item.

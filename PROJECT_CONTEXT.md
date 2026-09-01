@@ -113,3 +113,11 @@ The Windows release workflow executes these scanner checks before PyInstaller.
 - `Importar checklist JSON` accepts that portable envelope, a legacy raw checklist object, or a list of raw checklist objects.
 - Imported checklist IDs that collide with local data are converted to copies rather than overwriting an existing checklist.
 - The application's internal `%APPDATA%` library file remains private implementation storage; users do not need to replace it manually to share checklists.
+
+## 2026-09-01 editable section names
+
+- Checklist section names are user-editable after creation/import.
+- Select a section and use `Renomear seção` to replace names such as `NOVA SEÇÃO` with any non-empty text.
+- The section number remains unchanged; only the user-facing section name is edited.
+- Custom capitalization is preserved in the model, sheet, portable JSON and PDF export.
+- Section bars themselves are read-only because a single click is reserved for expand/recolher; this avoids the previous conflict between expand/collapse and inline double-click editing.

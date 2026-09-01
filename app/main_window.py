@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -635,6 +636,8 @@ class ChecklistMainWindow(QMainWindow):
 
         self.btn_add_section = QPushButton("Adicionar seção")
         self.btn_add_section.clicked.connect(self.add_section)
+        self.btn_rename_section = QPushButton("Renomear seção")
+        self.btn_rename_section.clicked.connect(self.rename_section)
         self.btn_add_item = QPushButton("Adicionar item")
         self.btn_add_item.clicked.connect(self.add_item)
         self.btn_delete_section = QPushButton("Excluir seção")
@@ -668,6 +671,7 @@ class ChecklistMainWindow(QMainWindow):
         tools.addWidget(self.btn_expand_all)
         tools.addWidget(self.btn_collapse_all)
         tools.addWidget(self.btn_add_section)
+        tools.addWidget(self.btn_rename_section)
         tools.addWidget(self.btn_add_item)
         tools.addWidget(self.btn_delete_section)
         tools.addWidget(self.btn_delete_item)
@@ -998,14 +1002,14 @@ class ChecklistMainWindow(QMainWindow):
             item_label = "item" if len(items) == 1 else "itens"
             section_text = f"{arrow}  {section.get('number', '')}. {section.get('title', '')}    ·    {len(items)} {item_label}".strip()
             section_item = make_sheet_item(
-                section_text.upper(),
-                editable=True,
+                section_text,
+                editable=False,
                 bold=True,
                 background=self.section_row_color(),
             )
             section_item.setToolTip(
                 "Clique uma vez para expandir ou recolher a seção. "
-                "Dê duplo clique no texto para renomear a seção."
+                "Use Renomear seção para alterar o nome."
             )
             self.checklist_table.setItem(section_row, 0, section_item)
             self.checklist_table.setRowHeight(section_row, 34)
@@ -1245,16 +1249,9 @@ class ChecklistMainWindow(QMainWindow):
             return
 
         if row_info.get("type") == "section":
-            value = table_item.text().strip()
-            value = re.sub(r"^[▶▼]\s*", "", value)
-            value = re.sub(r"\s+·\s+\d+\s+ITENS?$", "", value, flags=re.IGNORECASE)
-            number, title = parse_section_label(value, sections[section_index])
-            sections[section_index]["number"] = number
-            sections[section_index]["title"] = title.upper()
-            self.save_now(silent=True)
-            self.refresh_home_metrics()
-            self.refresh_checklist_sheet()
-            self.show_status("Seção atualizada.")
+            # Section bars are renamed through the explicit Renomear seção
+            # action. Keeping the bar itself read-only avoids a click used to
+            # expand/collapse from destroying an in-progress inline editor.
             return
 
         if row_info.get("type") != "item":
@@ -1314,13 +1311,17 @@ class ChecklistMainWindow(QMainWindow):
         self.btn_save_item.setEnabled(enabled)
         self.btn_delete_item.setEnabled(self.get_active_section() is not None)
         self.btn_delete_section.setEnabled(self.get_active_section() is not None)
+        self.btn_rename_section.setEnabled(self.get_active_section() is not None)
 
         if not item_data:
             section = self.get_active_section()
 
             if section:
                 self.item_badge.setText(f"Seção {section.get('number', '')}")
-                self.scan_info_label.setText("Seção selecionada. Clique na barra da seção para expandir/recolher. Dê duplo clique no texto para renomear ou use Adicionar item.")
+                self.scan_info_label.setText(
+                    "Seção selecionada. Clique na barra da seção para expandir/recolher, "
+                    "use Renomear seção para alterar o nome ou Adicionar item para incluir uma linha."
+                )
             else:
                 self.item_badge.setText("Nenhum item")
                 self.scan_info_label.setText("Selecione ou adicione um item para revisar as orientações.")
@@ -1592,6 +1593,38 @@ class ChecklistMainWindow(QMainWindow):
         self.save_now(silent=True)
         self.refresh_all()
         self.show_status("Seção adicionada. Ela começa recolhida; clique na barra para expandir.")
+
+    def rename_section(self) -> None:
+        section = self.get_active_section()
+
+        if not section:
+            self.show_status("Selecione uma seção para renomear.")
+            return
+
+        current_title = str(section.get("title") or "").strip()
+        new_title, accepted = QInputDialog.getText(
+            self,
+            "Renomear seção",
+            f"Novo nome da seção {section.get('number', '')}:",
+            text=current_title,
+        )
+
+        if not accepted:
+            return
+
+        new_title = new_title.strip()
+
+        if not new_title:
+            self.show_status("O nome da seção não pode ficar vazio.")
+            return
+
+        section["title"] = new_title
+        self.save_now(silent=True)
+        self.refresh_home_metrics()
+        self.refresh_checklist_list()
+        self.refresh_checklist_sheet()
+        self.populate_item_editor()
+        self.show_status(f"Seção {section.get('number', '')} renomeada para: {new_title}")
 
     def delete_section(self) -> None:
         template = self.get_active_template()

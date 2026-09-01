@@ -45,3 +45,11 @@ def test_json_import_export_is_available_from_ui():
     assert "Exportar checklist ativo…" in MAIN
     assert "def import_checklist_json" in MAIN
     assert "def export_active_checklist_json" in MAIN
+
+
+def test_sections_have_explicit_persistent_rename_action():
+    assert 'self.btn_rename_section = QPushButton("Renomear seção")' in MAIN
+    assert "self.btn_rename_section.clicked.connect(self.rename_section)" in MAIN
+    assert "def rename_section(self)" in MAIN
+    assert 'section["title"] = new_title' in MAIN
+    assert 'section_text.upper()' not in MAIN
