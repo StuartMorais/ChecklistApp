@@ -1025,8 +1025,10 @@ class ChecklistMainWindow(QMainWindow):
                 self.checklist_table.insertRow(row)
                 self.checklist_row_map.append({"type": "item", "section_index": section_index, "item_index": item_index})
 
+                has_extra_guidance = item_has_extra_guidance(item_data)
+                pin_marker = "📌 " if has_extra_guidance else ""
                 values = [
-                    item_data.get("number"),
+                    f"{pin_marker}{item_data.get('number') or ''}".strip(),
                     item_data.get("documento"),
                     item_data.get("normativo"),
                     item_data.get("situacao") or "N/A",
@@ -1034,12 +1036,21 @@ class ChecklistMainWindow(QMainWindow):
                     item_data.get("observacao"),
                 ]
 
+                guidance_tooltip = (
+                    "Este item possui informações extras no painel inferior "
+                    "(descrição, documentos mínimos ou observações)."
+                    if has_extra_guidance
+                    else ""
+                )
+
                 for column, value in enumerate(values):
                     align = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
                     if column in {0, 3, 4}:
                         align = Qt.AlignmentFlag.AlignCenter
 
                     cell = make_sheet_item(value, editable=(column != 3), alignment=align)
+                    if guidance_tooltip:
+                        cell.setToolTip(guidance_tooltip)
                     self.checklist_table.setItem(row, column, cell)
 
                 status_combo = QComboBox()
@@ -1270,6 +1281,12 @@ class ChecklistMainWindow(QMainWindow):
 
         value = table_item.text().strip()
 
+        if column == 0 and value.startswith("📌"):
+            value = value.removeprefix("📌").strip()
+            self.loading_table = True
+            table_item.setText(value)
+            self.loading_table = False
+
         items[item_index][field_name] = value
         self.save_now(silent=True)
         self.refresh_home_metrics()
@@ -1330,7 +1347,8 @@ class ChecklistMainWindow(QMainWindow):
             self.required_documents_input.clear()
             self.notes_input.clear()
         else:
-            self.item_badge.setText(f"Item {item_data.get('number', '')}")
+            marker = " 📌" if item_has_extra_guidance(item_data) else ""
+            self.item_badge.setText(f"Item {item_data.get('number', '')}{marker}")
             self.scan_info_label.setText(self.format_scan_info(item_data))
             self.description_input.setPlainText(str(item_data.get("description") or ""))
             self.required_documents_input.setPlainText("\n".join(normalize_text_list(item_data.get("requiredDocuments"))))
@@ -1957,6 +1975,19 @@ def normalize_text_list(value: Any) -> list[str]:
         return []
 
     return [str(item).strip() for item in value if str(item).strip()]
+
+
+def item_has_extra_guidance(item_data: dict[str, Any]) -> bool:
+    if str(item_data.get("description") or "").strip():
+        return True
+
+    if normalize_text_list(item_data.get("requiredDocuments")):
+        return True
+
+    if normalize_text_list(item_data.get("notes")):
+        return True
+
+    return False
 
 
 def sanitize_filename(value: str) -> str:

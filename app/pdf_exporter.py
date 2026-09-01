@@ -144,7 +144,7 @@ def export_checklist_pdf(template: dict[str, Any], output_path: str | Path) -> P
                         p(item.get("situacao") or "N/A", cell_style),
                         p(item.get("folha"), cell_style),
                         p(item.get("observacao"), cell_style),
-                        p(build_panel_text(item), cell_style),
+                        rich_p(build_panel_text(item), cell_style),
                     ]
                 )
 
@@ -230,6 +230,15 @@ def p(value: Any, style: Any) -> Any:
         raise RuntimeError("Instale reportlab para exportar PDF.") from error
 
     return Paragraph(escape_pdf_text(value), style)
+
+
+def rich_p(value: Any, style: Any) -> Any:
+    try:
+        from reportlab.platypus import Paragraph
+    except ImportError as error:
+        raise RuntimeError("Instale reportlab para exportar PDF.") from error
+
+    return Paragraph(str(value or ""), style)
 
 
 def escape_pdf_text(value: Any) -> str:
