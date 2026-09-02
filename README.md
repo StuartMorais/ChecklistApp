@@ -78,9 +78,3 @@ ChecklistPython-vX.Y.Z.exe
 ChecklistPython-Setup-vX.Y.Z.exe
 SHA256SUMS.txt
 ```
-
-## Important notes
-
-- Do not commit `.venv`, `build`, `dist`, `__pycache__`, or local runtime data.
-- The app keeps using `%APPDATA%\checklist-app\data\checklistTemplates.json`, so existing Electron checklist data remains visible to the Python app.
-- The scanner is a practical checklist scanner baseline, not the full Padroniza Scanner V6 architecture.
