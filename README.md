@@ -1,6 +1,6 @@
 # ChecklistPython
 
-Python/PySide6 version of the checklist application.
+Python/PySide6 checklist application.
 
 This project replaces the HTML/Electron prototype with a Windows desktop app that keeps the same local JSON data model and adds a structure-first scanner inspired by Padroniza.
 
